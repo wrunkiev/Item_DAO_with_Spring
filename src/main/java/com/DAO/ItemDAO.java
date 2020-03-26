@@ -4,14 +4,18 @@ import com.model.Item;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.hibernate.annotations.NamedNativeQueries;
 import org.hibernate.query.NativeQuery;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Repository;
 
 import javax.persistence.NoResultException;
 
+import java.util.List;
+
 import static com.util.HibernateSessionFactory.createSessionFactory;
 
-@Repository
+
 public class ItemDAO {
     public Item save(Item item)throws Exception{
         checkItemNull(item);
@@ -25,6 +29,7 @@ public class ItemDAO {
             session.save(item);
 
             tr.commit();
+
             return item;
         } catch (HibernateException e) {
             System.err.println("Exception in method ItemDAO.save. Save item with ID: " + item.getId() + " is failed");
@@ -32,7 +37,7 @@ public class ItemDAO {
             if (tr != null) {
                 tr.rollback();
             }
-            return null;
+            throw e;
         }
     }
 
@@ -52,7 +57,7 @@ public class ItemDAO {
             if (tr != null) {
                 tr.rollback();
             }
-            return null;
+            throw e;
         }
     }
 
@@ -78,7 +83,7 @@ public class ItemDAO {
             if (tr != null) {
                 tr.rollback();
             }
-            return null;
+            throw e;
         }
     }
 
@@ -103,6 +108,7 @@ public class ItemDAO {
             if (tr != null) {
                 tr.rollback();
             }
+            throw e;
         }
     }
 
@@ -113,15 +119,14 @@ public class ItemDAO {
     }
 
     private static void existItem(Item item) throws Exception{
-        if(getItemFromDB(item) != null){
-            throw new Exception("Exception in method ItemDAO.existItem. Item with ID: " +
-                    getItemFromDB(item).getId() + " is exist in DB already");
+        if(getItemFromDB(item) > 0){
+            throw new Exception("Exception in method ItemDAO.existItem. Item is exist in DB already");
         }
     }
 
-    private static Item getItemFromDB(Item item){
+    @SuppressWarnings("unchecked")
+    private static int getItemFromDB(Item item){
         Transaction tr = null;
-        Item it;
         try (Session session = createSessionFactory().openSession()) {
             tr = session.getTransaction();
             tr.begin();
@@ -130,22 +135,16 @@ public class ItemDAO {
             NativeQuery query = session.createNativeQuery(sql, Item.class);
             query.setParameter(1, item.getName());
 
-            it = (Item) query.getSingleResult();
+            List<Item> list = session.createNativeQuery(sql).setParameter(1, item.getName()).getResultList();
 
             tr.commit();
-            return it;
-        } catch (NoResultException ex) {
-            System.err.println(ex.getMessage());
-            if (tr != null) {
-                tr.rollback();
-            }
-            return null;
-        } catch (HibernateException e) {
+            return list.size();
+        }catch (Exception e) {
             System.err.println(e.getMessage());
-            if (tr != null) {
+            if(tr != null) {
                 tr.rollback();
             }
-            return null;
+            throw e;
         }
     }
 }
